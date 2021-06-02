@@ -40,8 +40,10 @@ func NewPlayerServer(store PlayerStore) *PlayerServer {
 	return p
 }
 
+const jsonContentType = "application/json"
+
 func (p *PlayerServer) leagueHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Add("content-type", "application/json")
+	w.Header().Set("content-type", jsonContentType)
 	w.WriteHeader(http.StatusOK)
 
 	json.NewEncoder(w).Encode(p.Store.GetLeague())
@@ -76,12 +78,11 @@ func (p *PlayerServer) showScore(w http.ResponseWriter, player string) {
 
 type InMemoryPlayerStore struct {
 	scores map[string]int
-	league []Player
 	mux    sync.Mutex
 }
 
 func NewInMemoryPlayerStore() *InMemoryPlayerStore {
-	return &InMemoryPlayerStore{scores: map[string]int{}, league: []Player{}}
+	return &InMemoryPlayerStore{scores: map[string]int{}}
 }
 
 func (store *InMemoryPlayerStore) GetPlayerScore(name string) int {
@@ -94,6 +95,10 @@ func (store *InMemoryPlayerStore) RecordWin(name string) {
 	store.mux.Unlock()
 }
 
-func (store *InMemoryPlayerStore) GetLeague() []Player {
-	return store.league
+func (store *InMemoryPlayerStore) GetLeague() (players []Player) {
+	for name, wins := range store.scores {
+		players = append(players, Player{Name: name, Wins: wins})
+	}
+
+	return
 }
