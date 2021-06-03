@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
+	"sort"
 	"strings"
-	"sync"
 )
 
 type Player struct {
@@ -17,7 +18,7 @@ type Player struct {
 type PlayerStore interface {
 	GetPlayerScore(name string) int
 	RecordWin(name string)
-	GetLeague() []Player
+	GetLeague() League
 }
 
 type PlayerServer struct {
@@ -76,29 +77,46 @@ func (p *PlayerServer) showScore(w http.ResponseWriter, player string) {
 	fmt.Fprint(w, score)
 }
 
-type InMemoryPlayerStore struct {
-	scores map[string]int
-	mux    sync.Mutex
+type FileSystemPlayerStore struct {
+	database *json.Encoder
+	league   League
 }
 
-func NewInMemoryPlayerStore() *InMemoryPlayerStore {
-	return &InMemoryPlayerStore{scores: map[string]int{}}
-}
-
-func (store *InMemoryPlayerStore) GetPlayerScore(name string) int {
-	return store.scores[name]
-}
-
-func (store *InMemoryPlayerStore) RecordWin(name string) {
-	store.mux.Lock()
-	store.scores[name]++
-	store.mux.Unlock()
-}
-
-func (store *InMemoryPlayerStore) GetLeague() (players []Player) {
-	for name, wins := range store.scores {
-		players = append(players, Player{Name: name, Wins: wins})
+func NewFileSystemPlayerStore(db *os.File) (*FileSystemPlayerStore, error) {
+	db.Seek(0, 0)
+	league, err := NewLeague(db)
+	if err != nil {
+		return nil, fmt.Errorf("problem loading player from file %s, %v", db.Name(), err)
 	}
 
-	return
+	return &FileSystemPlayerStore{database: json.NewEncoder(&tape{db}), league: league}, nil
+}
+
+func (s *FileSystemPlayerStore) GetLeague() (league League) {
+	sort.Slice(s.league, func(i, j int) bool {
+		return s.league[i].Wins > s.league[j].Wins
+	})
+	return s.league
+}
+
+func (s *FileSystemPlayerStore) GetPlayerScore(name string) int {
+	player := s.league.Find(name)
+
+	if player == nil {
+		return 0
+	}
+
+	return player.Wins
+}
+
+func (s *FileSystemPlayerStore) RecordWin(name string) {
+	player := s.league.Find(name)
+	if player != nil {
+		player.Wins++
+	} else {
+		player = &Player{Name: name, Wins: 1}
+		s.league = append(s.league, *player)
+	}
+
+	s.database.Encode(s.league)
 }

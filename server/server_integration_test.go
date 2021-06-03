@@ -8,7 +8,11 @@ import (
 )
 
 func TestRecordingWinsAndRetrievingThem(t *testing.T) {
-	store := NewInMemoryPlayerStore()
+	database, cleanDatabase := createTempFile(t, "")
+	defer cleanDatabase()
+	store, err := NewFileSystemPlayerStore(database)
+	assertNoError(t, err)
+
 	server := NewPlayerServer(store)
 
 	const player = "Pepper"
@@ -33,5 +37,4 @@ func TestRecordingWinsAndRetrievingThem(t *testing.T) {
 		want := []Player{{Name: player, Wins: wins}}
 		assertLeague(t, got, want)
 	})
-
 }
