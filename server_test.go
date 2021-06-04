@@ -1,4 +1,4 @@
-package server
+package poker
 
 import (
 	"encoding/json"
@@ -10,26 +10,8 @@ import (
 	"testing"
 )
 
-type stubPlayerStore struct {
-	scores   map[string]int
-	winCalls []string
-	league   League
-}
-
-func (store *stubPlayerStore) GetPlayerScore(name string) int {
-	return store.scores[name]
-}
-
-func (store *stubPlayerStore) RecordWin(name string) {
-	store.winCalls = append(store.winCalls, name)
-}
-
-func (store *stubPlayerStore) GetLeague() League {
-	return store.league
-}
-
 func TestGETPlayers(t *testing.T) {
-	store := &stubPlayerStore{
+	store := &StubPlayerStore{
 		scores: map[string]int{"Pepper": 20, "Floyd": 10},
 	}
 
@@ -70,7 +52,7 @@ func newGetScoreRequest(name string) *http.Request {
 }
 
 func TestStoreWins(t *testing.T) {
-	store := &stubPlayerStore{
+	store := &StubPlayerStore{
 		scores: map[string]int{},
 	}
 
@@ -107,7 +89,7 @@ func TestLeague(t *testing.T) {
 			{"Chris", 5},
 			{"Thiest", 9},
 		}
-		store := &stubPlayerStore{league: wantedLeague}
+		store := &StubPlayerStore{league: wantedLeague}
 		srv := NewPlayerServer(store)
 
 		req := newLeagueRequest()

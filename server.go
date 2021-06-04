@@ -1,5 +1,5 @@
-// Package server ...
-package server
+// Package poker ...
+package poker
 
 import (
 	"encoding/json"
